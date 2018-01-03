@@ -14,7 +14,7 @@ logger = utils.get_default_logger()
 class FCN:
     def __init__(self, images, labels=None, reg=1.0, net_params=None, lr=None):
         self.images = images
-        self.labels = labels
+        self.labels = labels if labels is None else tf.cast(labels, dtype=tf.float32)
         self.reg = reg
         self.lr = lr
         self.params = self.__dict__.copy()
@@ -36,6 +36,9 @@ class FCN:
 
             conv4 = utils.conv2d(conv3_2, 1, 'conv4', kernel_size=(1, 1), activation_fn=None)
 
+        out = tf.where(conv4 < 0, tf.zeros_like(conv4), tf.ones_like(conv4))
+        self.outputs = tf.image.resize_nearest_neighbor(out, config['input_size'])
+
         endpoints = OrderedDict()
         endpoints['conv1_1'] = conv1_1
         endpoints['conv1_2'] = conv1_2
@@ -44,6 +47,7 @@ class FCN:
         endpoints['conv3_1'] = conv3_1
         endpoints['conv3_2'] = conv3_2
         endpoints['conv4'] = conv4
+        endpoints['outputs'] = self.outputs
         self.endpoints = endpoints
 
     def train_from_scratch(self, config):
@@ -70,10 +74,15 @@ class FCN:
         summaries = set(tf.get_collection(tf.GraphKeys.SUMMARIES))
 
         conv4_flatten = tf.reshape(self.endpoints['conv4'], shape=(-1,), name='conv4_flatten')
-        labels = tf.image.resize_nearest_neighbor(self.labels, size=label_size)
-        labels_flatten = tf.cast(tf.reshape(labels, shape=(-1,), name='labels_flatten'), dtype=tf.float32)
+        labels_resized = tf.image.resize_nearest_neighbor(self.labels, size=label_size)
+        labels_flatten = tf.reshape(labels_resized, shape=(-1,), name='labels_flatten')
+
         cross_entropy = tf.nn.sigmoid_cross_entropy_with_logits(labels=labels_flatten, logits=conv4_flatten)
         data_loss = tf.reduce_mean(cross_entropy, name='data_loss')
+
+        correct = tf.cast(tf.equal(self.labels, self.outputs), dtype=tf.float32)
+        accuracy = tf.reduce_mean(correct, name='accuracy')
+        summaries.add(tf.summary.scalar('accuracy', accuracy))
 
         if self.reg:
             reg_loss = tf.multiply(self.reg,
@@ -95,7 +104,7 @@ class FCN:
         return train_op, summary_op
 
     def __repr__(self):
-        myself = '\n' + '\n'.join('{:>2} {:<10} {}'.format(i, key, value.shape)
+        myself = '\n' + '\n'.join('{:>2} {:<10} {}{}'.format(i, key, value.dtype, value.shape)
                                   for i, (key, value) in enumerate(self.endpoints.items()))
         myself += '\n' + '\n'.join('{:<10}= {}'.format(key, value) for key, value in self.params.items())
         return myself
