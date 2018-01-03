@@ -47,6 +47,7 @@ class FCN:
         endpoints['conv3_1'] = conv3_1
         endpoints['conv3_2'] = conv3_2
         endpoints['conv4'] = conv4
+        endpoints['out'] = out
         endpoints['outputs'] = self.outputs
         self.endpoints = endpoints
 
