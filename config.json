@@ -1,0 +1,18 @@
+{
+  "net_params": {
+    "conv1_1": 16,
+    "conv1_2": 32,
+    "conv2_1": 32,
+    "conv2_2": 64,
+    "conv3_1": 64,
+    "conv3_2": 128
+  },
+  "learning_rate": 1e-3,
+  "data_dir": "/home/wenfeng/Desktop/Image-Segmentations/icpr-2018/data",
+  "train_dir": "train/",
+  "log_every": 5,
+  "n_examples_for_train": 138,
+  "batch_size": 1,
+  "save_summaries_secs": 10,
+  "n_epochs_for_train": 1
+}
