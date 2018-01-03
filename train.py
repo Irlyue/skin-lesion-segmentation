@@ -73,16 +73,13 @@ def train():
     config = utils.load_config()
     with tf.Graph().as_default():
         dermis = inputs.SkinData(config['data_dir'], 'dermis')
-        dermis = prep(dermis)
-        images, labels = tf.constant(dermis.images), tf.constant(dermis.labels)
-        batch_images, batch_labels = tf.train.batch([images, labels],
-                                                    enqueue_many=True,
-                                                    batch_size=config['batch_size'])
+        batch_images, batch_labels = dermis.data_batch(config['batch_size'], config['input_size'])
         net = model.FCN(batch_images, batch_labels,
                         net_params=config['net_params'],
+                        reg=config['reg'],
                         lr=config['learning_rate'])
         net.train_from_scratch(config)
 
 
 if __name__ == '__main__':
-    test_small()
+    train()

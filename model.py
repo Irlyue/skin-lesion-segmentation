@@ -52,7 +52,10 @@ class FCN:
         logger.info('config=\n' + json.dumps(config, indent=2))
         n_steps_per_epoch = int(math.ceil(config['n_examples_for_train'] // config['batch_size']))
         n_steps_for_train = config['n_epochs_for_train'] * n_steps_per_epoch
-        train_op, summary_op = self._build_train(config['batch_size'])
+        h, w = config['input_size']
+        stride = config['stride']
+        label_h, label_w = h // stride, w // stride
+        train_op, summary_op = self._build_train(config['batch_size'], (label_h, label_w))
 
         utils.delete_if_exists(config['train_dir'])
         last_loss = slim.learning.train(train_op,
@@ -63,14 +66,15 @@ class FCN:
                                         number_of_steps=n_steps_for_train)
         logger.info('Last loss: %.3f' % last_loss)
 
-    def _build_train(self, batch_size):
+    def _build_train(self, batch_size, label_size):
         summaries = set(tf.get_collection(tf.GraphKeys.SUMMARIES))
 
-        conv4_flatten = tf.reshape(self.endpoints['conv4'], shape=(batch_size, -1), name='conv4_flatten')
-        labels_flatten = tf.reshape(self.labels, shape=(batch_size, -1), name='labels_flatten')
-        data_loss = tf.losses.sigmoid_cross_entropy(multi_class_labels=labels_flatten,
-                                                    logits=conv4_flatten,
-                                                    scope='data_loss')
+        conv4_flatten = tf.reshape(self.endpoints['conv4'], shape=(-1,), name='conv4_flatten')
+        labels = tf.image.resize_nearest_neighbor(self.labels, size=label_size)
+        labels_flatten = tf.cast(tf.reshape(labels, shape=(-1,), name='labels_flatten'), dtype=tf.float32)
+        cross_entropy = tf.nn.sigmoid_cross_entropy_with_logits(labels=labels_flatten, logits=conv4_flatten)
+        data_loss = tf.reduce_mean(cross_entropy, name='data_loss')
+
         if self.reg:
             reg_loss = tf.multiply(self.reg,
                                    tf.add_n(tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)),
@@ -82,7 +86,7 @@ class FCN:
         summaries.add(tf.summary.scalar('loss/total_loss', data_loss))
 
         global_step = tf.train.get_or_create_global_step()
-        solver = tf.train.GradientDescentOptimizer(self.lr)
+        solver = tf.train.AdamOptimizer(self.lr)
         train_op = slim.learning.create_train_op(total_loss,
                                                  solver,
                                                  global_step=global_step)
