@@ -99,6 +99,11 @@ def default_image_prep(image, label, input_size):
     return image, label
 
 
+def image_prep_for_test(image):
+    image = image / 255.0
+    return image
+
+
 def image_scaling(img, label):
     """
     Randomly scales the images between 0.9 to 1.5 times the original size.

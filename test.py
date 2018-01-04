@@ -1,11 +1,14 @@
+import os
 import utils
 import inputs
 import numpy as np
 import tensorflow as tf
+import matplotlib.pyplot as plt
 import tensorflow.contrib.slim as slim
 
 
 from model import FCN
+from inputs import image_prep_for_test
 
 
 logger = utils.get_default_logger()
@@ -68,5 +71,40 @@ def test_two():
             logger.info('{:<10} {}'.format(key, value))
 
 
+def test_three():
+    config = utils.load_config()
+    dermis = inputs.SkinData(config['data_dir'], 'dermis')
+    with tf.Graph().as_default():
+        global_step = tf.train.get_or_create_global_step()
+        image_ph = tf.placeholder(dtype=tf.float32, shape=(None, None, 3))
+        images = tf.expand_dims(image_ph, axis=0)
+        net = FCN(images,
+                  net_params=config['net_params'])
+
+        saver = tf.train.Saver()
+        with tf.Session() as sess:
+            saver.restore(sess, tf.train.latest_checkpoint(config['train_dir']))
+            logger.info('Model at step-%d restored successfully!' % sess.run(global_step))
+            utils.create_if_not_exists(config['save_path'])
+            for i, (image, label) in enumerate(zip(dermis.images, dermis.labels)):
+                if i % 5 == 0:
+                    logger.info('Processing image %d...' % i)
+
+                prep_image = image_prep_for_test(image)
+                pred = np.squeeze(sess.run(net.outputs, feed_dict={image_ph: prep_image}))
+                path = os.path.join(config['save_path'], dermis.listing[i].split('/')[-1] + '.jpg')
+                save_all(image, label, pred, path)
+
+
+def save_all(image, label, pred, path):
+    plt.subplot(131)
+    plt.imshow(image)
+    plt.subplot(132)
+    plt.imshow(label, cmap='gray')
+    plt.subplot(133)
+    plt.imshow(pred, cmap='gray')
+    plt.savefig(path)
+
+
 if __name__ == '__main__':
-    test_two()
+    test_three()

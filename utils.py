@@ -46,6 +46,11 @@ def delete_if_exists(path):
         tf.gfile.DeleteRecursively(path)
 
 
+def create_if_not_exists(path):
+    if not os.path.exists(path):
+        os.makedirs(path)
+
+
 def class_wise_pooling(x, m, scope='class_pool'):
     """
     Operation for class-wise pooling.
