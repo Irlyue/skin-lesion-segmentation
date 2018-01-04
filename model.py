@@ -60,7 +60,15 @@ class FCN:
         h, w = config['input_size']
         stride = config['stride']
         label_h, label_w = h // stride, w // stride
-        train_op, summary_op = self._build_train(config['batch_size'], (label_h, label_w))
+
+        n_epochs_per_decay = config['n_epochs_per_decay']
+        decay_steps = n_epochs_per_decay * n_steps_per_epoch
+        lr = tf.train.exponential_decay(self.lr,
+                                        global_step=tf.train.get_or_create_global_step(),
+                                        decay_rate=config['lr_decay_rate'],
+                                        decay_steps=decay_steps,
+                                        staircase=True)
+        train_op, summary_op = self._build_train(config['batch_size'], (label_h, label_w), lr)
 
         utils.delete_if_exists(config['train_dir'])
         last_loss = slim.learning.train(train_op,
@@ -71,7 +79,7 @@ class FCN:
                                         number_of_steps=n_steps_for_train)
         logger.info('Last loss: %.3f' % last_loss)
 
-    def _build_train(self, batch_size, label_size):
+    def _build_train(self, batch_size, label_size, lr):
         summaries = set(tf.get_collection(tf.GraphKeys.SUMMARIES))
 
         conv4_flatten = tf.reshape(self.endpoints['conv4'], shape=(-1,), name='conv4_flatten')
@@ -93,13 +101,14 @@ class FCN:
             reg_loss = 0.0
         total_loss = tf.add(data_loss, reg_loss, name='total_loss')
         summaries.add(tf.summary.scalar('loss/data_loss', data_loss))
-        summaries.add(tf.summary.scalar('loss/total_loss', data_loss))
+        summaries.add(tf.summary.scalar('loss/total_loss', total_loss))
 
         global_step = tf.train.get_or_create_global_step()
-        solver = tf.train.AdamOptimizer(self.lr)
+        solver = tf.train.AdamOptimizer(lr)
         train_op = slim.learning.create_train_op(total_loss,
                                                  solver,
                                                  global_step=global_step)
+        summaries.add(tf.summary.scalar('learning_rate', lr))
 
         summary_op = tf.summary.merge(list(summaries), name='summary_op')
         return train_op, summary_op
