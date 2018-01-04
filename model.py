@@ -37,7 +37,8 @@ class FCN:
             conv4 = utils.conv2d(conv3_2, 1, 'conv4', kernel_size=(1, 1), activation_fn=None)
 
         out = tf.where(conv4 < 0, tf.zeros_like(conv4), tf.ones_like(conv4))
-        self.outputs = tf.image.resize_nearest_neighbor(out, config['input_size'])
+        h, w = tf.shape(self.images)[1], tf.shape(self.images)[2]
+        self.outputs = tf.image.resize_nearest_neighbor(out, size=(h, w))
 
         endpoints = OrderedDict()
         endpoints['conv1_1'] = conv1_1

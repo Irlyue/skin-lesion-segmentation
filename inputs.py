@@ -69,6 +69,24 @@ class SkinData:
         return tf.train.batch([image, label],
                               batch_size=batch_size)
 
+    def test_batch(self):
+        image_list = [item + '_orig.jpg' for item in self.listing]
+        label_list = [item + '_contour.png' for item in self.listing]
+        image_files, label_files = tf.convert_to_tensor(image_list), tf.convert_to_tensor(label_list)
+        queue = tf.train.slice_input_producer([image_files, label_files],
+                                              shuffle=False,
+                                              num_epochs=1)
+        img_contents = tf.read_file(queue[0])
+        label_contents = tf.read_file(queue[1])
+        image = tf.image.decode_jpeg(img_contents, channels=3)
+        label = tf.image.decode_png(label_contents, channels=1)
+
+        # pre-processing
+        image = tf.divide(tf.cast(image, dtype=tf.float32), 255.0)
+        images = tf.expand_dims(image, axis=0)
+        labels = tf.expand_dims(label, axis=0)
+        return images, labels
+
 
 def default_image_prep(image, label, input_size):
     crop_h, crop_w = input_size
