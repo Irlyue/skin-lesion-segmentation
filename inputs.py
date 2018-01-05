@@ -3,6 +3,7 @@ import tensorflow as tf
 
 
 from scipy.misc import imread
+from sklearn.model_selection import train_test_split
 
 
 def get_image_list(data_dir, db):
@@ -46,16 +47,21 @@ class SkinData:
         myself += '#examples: %s\n' % len(self.images)
         return myself
 
-    def data_batch(self, batch_size, input_size):
+    def data_batch(self, batch_size, input_size, seed=None):
         """
         Generate a input batch.
 
         :param batch_size: int, batch size
         :param input_size: tuple or list, input dimension for the model
+        :param seed: int, the seed to split the data set into training and testing subsets. If None,
+        do not split.
         :return:
         """
-        image_list = [item + '_orig.jpg' for item in self.listing]
-        label_list = [item + '_contour.png' for item in self.listing]
+        listing = self.listing
+        if seed:
+            listing, _ = train_test_split(self.listing, random_state=seed, test_size=0.25)
+        image_list = [item + '_orig.jpg' for item in listing]
+        label_list = [item + '_contour.png' for item in listing]
         image_files, label_files = tf.convert_to_tensor(image_list), tf.convert_to_tensor(label_list)
         queue = tf.train.slice_input_producer([image_files, label_files],
                                               shuffle=True)
@@ -67,9 +73,12 @@ class SkinData:
         return tf.train.batch([image, label],
                               batch_size=batch_size)
 
-    def test_batch(self):
-        image_list = [item + '_orig.jpg' for item in self.listing]
-        label_list = [item + '_contour.png' for item in self.listing]
+    def test_batch(self, seed=None):
+        listing = self.listing
+        if seed:
+            _, listing = train_test_split(self.listing, random_state=seed, test_size=0.25)
+        image_list = [item + '_orig.jpg' for item in listing]
+        label_list = [item + '_contour.png' for item in listing]
         image_files, label_files = tf.convert_to_tensor(image_list), tf.convert_to_tensor(label_list)
         queue = tf.train.slice_input_producer([image_files, label_files],
                                               shuffle=False,

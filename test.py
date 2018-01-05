@@ -56,7 +56,7 @@ def test_two():
     dermis = inputs.SkinData(config['data_dir'], 'dermis')
     tf.logging.set_verbosity(tf.logging.INFO)
     with tf.Graph().as_default():
-        batch_images, batch_labels = dermis.test_batch()
+        batch_images, batch_labels = dermis.test_batch(seed=config['split_seed'])
         net = FCN(batch_images,
                   net_params=config['net_params'])
 
@@ -67,7 +67,7 @@ def test_two():
         results = slim.evaluation.evaluate_once('',
                                                 tf.train.latest_checkpoint(config['train_dir']),
                                                 '/tmp/model',
-                                                num_evals=config['n_examples_for_train'],
+                                                num_evals=config['n_examples_for_test'],
                                                 eval_op=list(name_to_updates.values()),
                                                 final_op=list(name_to_values.values()))
 

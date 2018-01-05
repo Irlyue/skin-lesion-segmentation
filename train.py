@@ -73,7 +73,8 @@ def train():
     config = utils.load_config()
     with tf.Graph().as_default():
         dermis = inputs.SkinData(config['data_dir'], 'dermis')
-        batch_images, batch_labels = dermis.data_batch(config['batch_size'], config['input_size'])
+        batch_images, batch_labels = dermis.data_batch(config['batch_size'], config['input_size'],
+                                                       seed=config['split_seed'])
         net = model.FCN(batch_images, batch_labels,
                         net_params=config['net_params'],
                         reg=config['reg'],
