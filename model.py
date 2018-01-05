@@ -12,11 +12,12 @@ logger = utils.get_default_logger()
 
 
 class FCN:
-    def __init__(self, images, labels=None, reg=1.0, net_params=None, lr=None):
+    def __init__(self, images, labels=None, reg=1.0, net_params=None, lr=None, class_weights=None):
         self.images = images
         self.labels = labels if labels is None else tf.cast(labels, dtype=tf.float32)
         self.reg = reg
         self.lr = lr
+        self.class_weights = class_weights
         self.params = self.__dict__.copy()
         self.net_params = net_params
         self.build_graph()
@@ -88,7 +89,11 @@ class FCN:
         labels_flatten = tf.reshape(labels_resized, shape=(-1,), name='labels_flatten')
 
         cross_entropy = tf.nn.sigmoid_cross_entropy_with_logits(labels=labels_flatten, logits=conv4_flatten)
-        data_loss = tf.reduce_mean(cross_entropy, name='data_loss')
+        weights = tf.where(tf.equal(labels_flatten, tf.zeros_like(labels_flatten)),
+                           tf.ones_like(labels_flatten) * self.class_weights[0],
+                           tf.ones_like(labels_flatten) * self.class_weights[1])
+        weighted_cross_entropy = weights * cross_entropy
+        data_loss = tf.reduce_mean(weighted_cross_entropy, name='data_loss')
 
         correct = tf.cast(tf.equal(self.labels, self.outputs), dtype=tf.float32)
         accuracy = tf.reduce_mean(correct, name='accuracy')

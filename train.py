@@ -78,7 +78,8 @@ def train():
         net = model.FCN(batch_images, batch_labels,
                         net_params=config['net_params'],
                         reg=config['reg'],
-                        lr=config['learning_rate'])
+                        lr=config['learning_rate'],
+                        class_weights=config['class_weights'])
         net.train_from_scratch(config)
 
 

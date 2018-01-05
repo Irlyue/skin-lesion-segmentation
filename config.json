@@ -22,5 +22,6 @@
   "n_epochs_for_train": 100,
   "lr_decay_rate": 0.5,
   "n_epochs_per_decay": 25,
+  "class_weights": [0.3, 0.7],
   "save_path": "/tmp/images/"
 }
