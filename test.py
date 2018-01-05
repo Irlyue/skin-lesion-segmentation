@@ -12,7 +12,7 @@ import tensorflow.contrib.slim as slim
 from model import FCN
 from inputs import image_prep_for_test
 from crf import crf_post_process
-from testing_utils import metric_accuracy
+from testing_utils import metric_accuracy, metric_many_from_counter, count_many
 
 
 logger = utils.get_default_logger()
@@ -145,6 +145,61 @@ def test_four():
             logger.info('Accuracy after crf: %.3f' % accuracy)
 
 
+def test_five():
+    config = utils.load_config()
+    dermis = inputs.SkinData(config['data_dir'], 'dermis')
+    with tf.Graph().as_default():
+        global_step = tf.train.get_or_create_global_step()
+        image_ph = tf.placeholder(dtype=tf.float32, shape=(None, None, 3))
+        images = tf.expand_dims(image_ph, axis=0)
+        net = FCN(images,
+                  net_params=config['net_params'])
+
+        h, w = tf.shape(image_ph)[0], tf.shape(image_ph)[1]
+        upscore = tf.image.resize_images(net.endpoints['conv4'], size=(h, w))
+        prob_one = tf.nn.sigmoid(upscore)
+        prob_zero = 1 - prob_one
+        probs = tf.concat([prob_zero, prob_one], axis=3)
+
+        saver = tf.train.Saver()
+        with tf.Session() as sess:
+            saver.restore(sess, tf.train.latest_checkpoint(config['train_dir']))
+            logger.info('Model at step-%d restored successfully!' % sess.run(global_step))
+            utils.create_if_not_exists(config['save_path'])
+
+            result_before = {
+                'TP': 0,
+                'TN': 0,
+                'FP': 0,
+                'FN': 0
+            }
+            result_after = result_before.copy()
+
+            def update_dict(d, to_update):
+                for key in to_update:
+                    d[key] += to_update[key]
+
+            for i, (image, label) in enumerate(zip(dermis.images, dermis.labels)):
+                prep_image = image_prep_for_test(image)
+                probs_o = np.squeeze(sess.run(probs, feed_dict={image_ph: prep_image}))
+                cnn_result = np.argmax(probs_o, axis=2)
+                cnn_crf_result = crf_post_process(image, probs_o)
+
+                result_bi = count_many(cnn_result, label)
+                result_ai = count_many(cnn_crf_result, label)
+                update_dict(result_before, result_bi)
+                update_dict(result_after, result_ai)
+                result_bi.update(metric_many_from_counter(result_bi))
+                result_ai.update(metric_many_from_counter(result_ai))
+
+                if i % 5 == 0:
+                    logger.info('Image-{}\nresult before\n{}\nresult after\n{}\n'.format(i, result_bi, result_ai))
+
+            result_before.update(metric_many_from_counter(result_before))
+            result_after.update(metric_many_from_counter(result_after))
+            logger.info('\nresult before\n{}\nresult after\n{}\n'.format(result_before, result_after))
+
+
 def save_all(image, label, pred, path):
     plt.subplot(131)
     plt.imshow(image)
@@ -168,5 +223,6 @@ def save_all_two(image, label, cnn_result, cnn_crf_result, path):
 
 
 if __name__ == '__main__':
+    test_five()
     # test_two()
-    test_four()
+    # test_four()
