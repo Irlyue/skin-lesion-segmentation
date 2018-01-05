@@ -13,6 +13,7 @@ from model import FCN
 from inputs import image_prep_for_test
 from crf import crf_post_process
 from testing_utils import metric_accuracy, metric_many_from_counter, count_many
+from sklearn.model_selection import train_test_split
 
 
 logger = utils.get_default_logger()
@@ -179,7 +180,8 @@ def test_five():
                 for key in to_update:
                     d[key] += to_update[key]
 
-            for i, (image, label) in enumerate(zip(dermis.images, dermis.labels)):
+            for i, (image, label) in \
+                    enumerate(train_test_split(dermis.images, dermis.labels, random_state=config['split_seed'])[2:]):
                 prep_image = image_prep_for_test(image)
                 probs_o = np.squeeze(sess.run(probs, feed_dict={image_ph: prep_image}))
                 cnn_result = np.argmax(probs_o, axis=2)
