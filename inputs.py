@@ -1,7 +1,5 @@
 import os
-import numpy as np
 import tensorflow as tf
-import matplotlib.pyplot as plt
 
 
 from scipy.misc import imread
@@ -173,20 +171,3 @@ def random_crop_and_pad_image_and_labels(image, label, crop_h, crop_w, ignore_la
 if __name__ == '__main__':
     dermis = SkinData('/home/wenfeng/Desktop/Image-Segmentations/icpr-2018/data', 'dermis')
     print(dermis)
-    with tf.Graph().as_default():
-        rp = '/home/wenfeng/Desktop/Image-Segmentations/icpr-2018/data'
-        data = SkinData(rp, 'dermis')
-        images, labels = data.data_batch(1, (400, 400))
-        with tf.train.MonitoredSession() as sess:
-            image, label = sess.run([images, labels])
-            print(image.shape, label.shape)
-            print(image)
-            plt.subplot(121)
-            plt.imshow(image[0].astype(np.uint8))
-            plt.subplot(122)
-            plt.imshow(label[0, :, :, 0], cmap='gray')
-            plt.show()
-    # dermquest = SkinData('/home/wenfeng/Desktop/Image-Segmentations/icpr-2018/data', 'dermquest')
-    # print(dermquest)
-    # dermquest.show_shapes()
-
