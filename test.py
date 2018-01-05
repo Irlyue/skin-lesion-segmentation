@@ -180,8 +180,8 @@ def test_five():
                 for key in to_update:
                     d[key] += to_update[key]
 
-            for i, (image, label) in \
-                    enumerate(train_test_split(dermis.images, dermis.labels, random_state=config['split_seed'])[2:]):
+            _, x_test, _, y_test = train_test_split(dermis.images, dermis.labels, random_state=config['split_seed'])
+            for i, (image, label) in enumerate(zip(x_test, y_test)):
                 prep_image = image_prep_for_test(image)
                 probs_o = np.squeeze(sess.run(probs, feed_dict={image_ph: prep_image}))
                 cnn_result = np.argmax(probs_o, axis=2)
