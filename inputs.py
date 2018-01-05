@@ -47,6 +47,26 @@ class SkinData:
         myself += '#examples: %s\n' % len(self.images)
         return myself
 
+    def train_batch_v1(self, batch_size, input_size, seed=None):
+        listing = self.listing
+        if seed:
+            listing, _ = train_test_split(self.listing, random_state=seed, test_size=0.25)
+        image_list = [item + '_orig.jpg' for item in listing]
+        label_list = [item + '_contour.png' for item in listing]
+        image_files, label_files = tf.convert_to_tensor(image_list), tf.convert_to_tensor(label_list)
+        queue = tf.train.slice_input_producer([image_files, label_files],
+                                              shuffle=True)
+        img_contents = tf.read_file(queue[0])
+        label_contents = tf.read_file(queue[1])
+        image = tf.image.decode_jpeg(img_contents, channels=3)
+        label = tf.image.decode_png(label_contents, channels=1)
+        image = tf.image.resize_images(image, size=input_size)
+        label = tf.image.resize_images(label, size=input_size, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+
+        image /= 255.0
+        return tf.train.batch([image, label],
+                              batch_size=batch_size)
+
     def data_batch(self, batch_size, input_size, seed=None):
         """
         Generate a input batch.
