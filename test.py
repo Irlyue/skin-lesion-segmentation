@@ -3,12 +3,16 @@ import utils
 import inputs
 import numpy as np
 import tensorflow as tf
+import matplotlib as mpl
+mpl.use('Agg')
 import matplotlib.pyplot as plt
 import tensorflow.contrib.slim as slim
 
 
 from model import FCN
 from inputs import image_prep_for_test
+from crf import crf_post_process
+from testing_utils import metric_accuracy
 
 
 logger = utils.get_default_logger()
@@ -96,6 +100,44 @@ def test_three():
                 save_all(image, label, pred, path)
 
 
+def test_four():
+    config = utils.load_config()
+    dermis = inputs.SkinData(config['data_dir'], 'dermis')
+    with tf.Graph().as_default():
+        global_step = tf.train.get_or_create_global_step()
+        image_ph = tf.placeholder(dtype=tf.float32, shape=(None, None, 3))
+        images = tf.expand_dims(image_ph, axis=0)
+        net = FCN(images,
+                  net_params=config['net_params'])
+
+        h, w = tf.shape(image_ph)[0], tf.shape(image_ph)[1]
+        upscore = tf.image.resize_images(net.endpoints['conv4'], size=(h, w))
+        prob_one = tf.nn.sigmoid(upscore)
+        prob_zero = 1 - prob_one
+        probs = tf.concat([prob_zero, prob_one], axis=3)
+
+        saver = tf.train.Saver()
+        with tf.Session() as sess:
+            saver.restore(sess, tf.train.latest_checkpoint(config['train_dir']))
+            logger.info('Model at step-%d restored successfully!' % sess.run(global_step))
+            utils.create_if_not_exists(config['save_path'])
+            total_count = 0
+            true_count = 0
+            for i, (image, label) in enumerate(zip(dermis.images, dermis.labels)):
+                prep_image = image_prep_for_test(image)
+                probs_o = np.squeeze(sess.run(probs, feed_dict={image_ph: prep_image}))
+                result = crf_post_process(image, probs_o)
+                accuracy_i, true_count_i, total_count_i = metric_accuracy(result, label)
+                true_count += true_count_i
+                total_count += total_count_i
+
+                if i % 5 == 0:
+                    logger.info('Image-%d accuracy: %.3f' % (i, accuracy_i))
+
+            accuracy = true_count * 1.0 / total_count
+            logger.info('Accuracy after crf: %.3f' % accuracy)
+
+
 def save_all(image, label, pred, path):
     plt.subplot(131)
     plt.imshow(image)
@@ -107,4 +149,5 @@ def save_all(image, label, pred, path):
 
 
 if __name__ == '__main__':
-    test_three()
+    test_two()
+    test_four()
