@@ -126,13 +126,20 @@ def test_four():
             for i, (image, label) in enumerate(zip(dermis.images, dermis.labels)):
                 prep_image = image_prep_for_test(image)
                 probs_o = np.squeeze(sess.run(probs, feed_dict={image_ph: prep_image}))
-                result = crf_post_process(image, probs_o)
-                accuracy_i, true_count_i, total_count_i = metric_accuracy(result, label)
+                cnn_result = np.argmax(probs_o, axis=2)
+                accuracy_before, _, _ = metric_accuracy(cnn_result, label)
+                cnn_crf_result = crf_post_process(image, probs_o)
+                accuracy_i, true_count_i, total_count_i = metric_accuracy(cnn_crf_result, label)
                 true_count += true_count_i
                 total_count += total_count_i
 
+                ss = 'DOWN' if accuracy_before > accuracy_i else 'UP'
+                path = os.path.join(config['save_path'], dermis.listing[i].split('/')[-1])
+                path = '{:<6} ({:.3f}) ({:.3f}) {}.jpg'.format(path, accuracy_before, accuracy_i, ss)
+                save_all_two(image, label, cnn_result, cnn_crf_result, path)
+
                 if i % 5 == 0:
-                    logger.info('Image-%d accuracy: %.3f' % (i, accuracy_i))
+                    logger.info('Image-%d accuracy before(%.3f) after(%.3f) %s' % (i, accuracy_before, accuracy_i, ss))
 
             accuracy = true_count * 1.0 / total_count
             logger.info('Accuracy after crf: %.3f' % accuracy)
@@ -148,6 +155,18 @@ def save_all(image, label, pred, path):
     plt.savefig(path)
 
 
+def save_all_two(image, label, cnn_result, cnn_crf_result, path):
+    plt.subplot(221)
+    plt.imshow(image)
+    plt.subplot(222)
+    plt.imshow(label, cmap='gray')
+    plt.subplot(223)
+    plt.imshow(cnn_result, cmap='gray')
+    plt.subplot(224)
+    plt.imshow(cnn_crf_result, cmap='gray')
+    plt.savefig(path)
+
+
 if __name__ == '__main__':
-    test_two()
+    # test_two()
     test_four()
